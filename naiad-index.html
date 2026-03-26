@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Naiad Content Dashboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f6f8fb;
+      color: #1f2937;
+      margin: 0;
+      padding: 0;
+    }
+
+    .container {
+      max-width: 1150px;
+      margin: 32px auto;
+      padding: 24px;
+    }
+
+    .card {
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      margin: 0 0 8px 0;
+      font-size: 32px;
+    }
+
+    h2, h3 {
+      margin-top: 0;
+    }
+
+    .subtitle {
+      color: #6b7280;
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    label {
+      display: block;
+      margin: 16px 0 8px;
+      font-weight: bold;
+    }
+
+    select,
+    textarea,
+    input[type="text"],
+    button {
+      width: 100%;
+      box-sizing: border-box;
+      font-size: 15px;
+      border-radius: 10px;
+    }
+
+    select,
+    textarea,
+    input[type="text"] {
+      padding: 12px;
+      border: 1px solid #d1d5db;
+      background: #fff;
+    }
+
+    textarea {
+      min-height: 110px;
+      resize: vertical;
+    }
+
+    .checkbox-card {
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 14px;
+      background: #fcfcfd;
+      margin-top: 8px;
+    }
+
+    .checkbox-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px 18px;
+    }
+
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: normal;
+      margin: 0;
+    }
+
+    .checkbox-item input {
+      width: auto;
+      transform: scale(1.05);
+    }
+
+    .button-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    button {
+      padding: 14px;
+      border: none;
+      cursor: pointer;
+      background: #111827;
+      color: #fff;
+      transition: 0.2s ease;
+      font-weight: bold;
+    }
+
+    button:hover {
+      opacity: 0.92;
+    }
+
+    button.secondary {
+      background: #374151;
+    }
+
+    button.prompt-btn {
+      background: #0f766e;
+    }
+
+    button.brand-btn {
+      background: #1d4ed8;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    #durum, #promptDurum, #brandDurum {
+      margin-top: 18px;
+      font-weight: bold;
+    }
+
+    #sonuc, #promptSonuc, #brandSonuc {
+      margin-top: 16px;
+      white-space: pre-wrap;
+      line-height: 1.6;
+      border: 1px solid #e5e7eb;
+      padding: 18px;
+      border-radius: 12px;
+      background: #fcfcfd;
+      min-height: 180px;
+    }
+
+    .helper {
+      color: #6b7280;
+      font-size: 13px;
+      margin-top: 6px;
+      line-height: 1.5;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    @media (max-width: 850px) {
+      .grid-2,
+      .grid-3,
+      .checkbox-grid,
+      .button-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>Naiad Content Dashboard</h1>
+      <div class="subtitle">
+        Önce markayı analiz et istersen. Sonra içerik üret. Sonuç geldikten sonra ayrıca prompt üret.
+      </div>
+
+      <div class="grid-3">
+        <div>
+          <label for="platform">Platform</label>
+          <select id="platform">
+            <option value="Instagram">Instagram</option>
+            <option value="LinkedIn">LinkedIn</option>
+            <option value="TikTok">TikTok</option>
+            <option value="Her ikisi">Her ikisi</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="hedef">İçerik hedefi</label>
+          <select id="hedef">
+            <option value="Etkileşim">Etkileşim</option>
+            <option value="Müşteri çekme">Müşteri çekme</option>
+            <option value="Marka bilinirliği">Marka bilinirliği</option>
+            <option value="Satış">Satış</option>
+            <option value="Bilgilendirme">Bilgilendirme</option>
+            <option value="Lansman">Lansman</option>
+            <option value="Güven oluşturma">Güven oluşturma</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="ton">Ton</label>
+          <select id="ton">
+            <option value="Akıcı ve sade">Akıcı ve sade</option>
+            <option value="Premium ve modern">Premium ve modern</option>
+            <option value="Samimi">Samimi</option>
+            <option value="Bold ve güçlü">Bold ve güçlü</option>
+            <option value="Uzman">Uzman</option>
+            <option value="Eğlenceli">Eğlenceli</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid-3">
+        <div>
+          <label for="isletmeTipi">İşletme tipi</label>
+          <select id="isletmeTipi">
+            <option value="Kafe">Kafe</option>
+            <option value="Restoran">Restoran</option>
+            <option value="Kurabiyeci / Tatlıcı">Kurabiyeci / Tatlıcı</option>
+            <option value="Güzellik merkezi">Güzellik merkezi</option>
+            <option value="Klinik">Klinik</option>
+            <option value="Emlak">Emlak</option>
+            <option value="Ajans">Ajans</option>
+            <option value="Kişisel marka">Kişisel marka</option>
+            <option value="E-ticaret markası">E-ticaret markası</option>
+            <option value="Diğer">Diğer</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="hedefKitle">Hedef kitle</label>
+          <select id="hedefKitle">
+            <option value="Genel tüketici">Genel tüketici</option>
+            <option value="Genç kitle">Genç kitle</option>
+            <option value="Kadın ağırlıklı kitle">Kadın ağırlıklı kitle</option>
+            <option value="Premium müşteri kitlesi">Premium müşteri kitlesi</option>
+            <option value="Yerel müşteri kitlesi">Yerel müşteri kitlesi</option>
+            <option value="B2B profesyonel kitle">B2B profesyonel kitle</option>
+            <option value="Girişimciler / marka sahipleri">Girişimciler / marka sahipleri</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="arastirmaModu">Araştırma modu</label>
+          <select id="arastirmaModu">
+            <option value="Yüksek etkileşim odaklı">Yüksek etkileşim odaklı</option>
+            <option value="Trend odaklı">Trend odaklı</option>
+            <option value="Storyboard odaklı">Storyboard odaklı</option>
+            <option value="Rakip mantığı odaklı">Rakip mantığı odaklı</option>
+            <option value="Satış odaklı">Satış odaklı</option>
+          </select>
+        </div>
+      </div>
+
+      <label>Ürün / hizmet odağı</label>
+      <div class="checkbox-card">
+        <div class="checkbox-grid">
+          <label class="checkbox-item"><input type="checkbox" name="odak" value="İmza ürünler" checked> İmza ürünler</label>
+          <label class="checkbox-item"><input type="checkbox" name="odak" value="Yeni ürünler"> Yeni ürünler</label>
+          <label class="checkbox-item"><input type="checkbox" name="odak" value="Hazırlık süreci"> Hazırlık süreci</label>
+          <label class="checkbox-item"><input type="checkbox" name="odak" value="Sunum ve görünüm"> Sunum ve görünüm</label>
+          <label class="checkbox-item"><input type="checkbox" name="odak" value="Müşteri deneyimi"> Müşteri deneyimi</label>
+          <label class="checkbox-item"><input type="checkbox" name="odak" value="Mekan atmosferi"> Mekan atmosferi</label>
+          <label class="checkbox-item"><input type="checkbox" name="odak" value="Kampanya / teklif"> Kampanya / teklif</label>
+          <label class="checkbox-item"><input type="checkbox" name="odak" value="Eğitim / bilgi verme"> Eğitim / bilgi verme</label>
+        </div>
+      </div>
+
+      <label for="markaAdi">Marka / işletme adı</label>
+      <input type="text" id="markaAdi" placeholder="Örn: Crumble House" />
+
+      <div class="grid-2">
+        <div>
+          <label for="websiteUrl">Website URL</label>
+          <input type="text" id="websiteUrl" placeholder="https://ornekmekan.com" />
+        </div>
+
+        <div>
+          <label for="googleMapsUrl">Google Maps URL</label>
+          <input type="text" id="googleMapsUrl" placeholder="https://maps.google.com/..." />
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div>
+          <label for="instagramUrl">Instagram URL</label>
+          <input type="text" id="instagramUrl" placeholder="https://instagram.com/..." />
+        </div>
+
+        <div>
+          <label for="tiktokUrl">TikTok URL</label>
+          <input type="text" id="tiktokUrl" placeholder="https://tiktok.com/@..." />
+        </div>
+      </div>
+
+      <label for="anaUrunler">Ana ürünler / hizmetler</label>
+      <input type="text" id="anaUrunler" placeholder="Örn: New York cookie, brownie, latte, matcha" />
+
+      <label for="aciklama">Konu / brief</label>
+      <textarea
+        id="aciklama"
+        placeholder="Örn: Yeni açılan kurabiye kafemiz için Instagram'da yüksek etkileşim alacak post ve reels fikirleri istiyorum."
+      ></textarea>
+
+      <label for="ozelNot">Özel not</label>
+      <textarea
+        id="ozelNot"
+        placeholder="Örn: Mağaza atmosferi sıcak, ürünler yakın plan çok iyi görünüyor, premium ama samimi bir hava istiyoruz."
+      ></textarea>
+
+      <div class="button-grid">
+        <button type="button" class="brand-btn" onclick="analyzeBrand()">Markayı Analiz Et</button>
+        <button type="button" onclick="runTask('trend')">Trend Ara</button>
+        <button type="button" onclick="runTask('ideas')" class="secondary">İçerik Fikirleri</button>
+        <button type="button" onclick="runTask('reels')">Reels Üret</button>
+        <button type="button" onclick="runTask('post')" class="secondary">Post Üret</button>
+        <button type="button" onclick="runTask('weekly')">Haftalık Plan</button>
+      </div>
+
+      <div id="durum"></div>
+    </div>
+
+    <div class="card">
+      <h2>Marka Analizi</h2>
+      <div id="brandDurum"></div>
+      <div id="brandSonuc">Burada marka analizi görünecek.</div>
+    </div>
+
+    <div class="card">
+      <h2>Sonuç</h2>
+      <div id="sonuc">Burada içerik sonucu görünecek.</div>
+    </div>
+
+    <div id="promptPanel" class="card hidden">
+      <h3>Prompt Üret</h3>
+      <div class="helper">
+        Önce içerik üretimi yapılmalı. Sonra aşağıdan araç seçip prompt üretebilirsin.
+      </div>
+
+      <div class="grid-2">
+        <div>
+          <label for="promptTool">Hangi araç için prompt?</label>
+          <select id="promptTool">
+            <option value="general_image">Genel görsel prompt</option>
+            <option value="midjourney">Midjourney</option>
+            <option value="firefly">Firefly</option>
+            <option value="canva">Canva AI</option>
+            <option value="gemini">Gemini / Imagen</option>
+            <option value="kling">Kling / video</option>
+          </select>
+        </div>
+
+        <div style="display:flex; align-items:end;">
+          <button id="promptBtn" class="prompt-btn" type="button" onclick="generatePrompt()">Prompt Üret</button>
+        </div>
+      </div>
+
+      <div id="promptDurum"></div>
+      <div id="promptSonuc">Burada prompt sonucu görünecek.</div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = "http://localhost:3001";
+
+    let lastGeneratedTask = null;
+    let lastGeneratedPost = null;
+    let lastOriginalPrompt = null;
+    let lastBrandProfile = null;
+
+    function getCheckedValues(name) {
+      return Array.from(document.querySelectorAll(`input[name="${name}"]:checked`))
+        .map((el) => el.value);
+    }
+
+    function collectFormData() {
+      return {
+        markaAdi: document.getElementById("markaAdi").value.trim(),
+        isletmeTipi: document.getElementById("isletmeTipi").value,
+        hedefKitle: document.getElementById("hedefKitle").value,
+        arastirmaModu: document.getElementById("arastirmaModu").value,
+        anaUrunler: document.getElementById("anaUrunler").value.trim(),
+        aciklama: document.getElementById("aciklama").value.trim(),
+        ozelNot: document.getElementById("ozelNot").value.trim(),
+        odaklar: getCheckedValues("odak"),
+      };
+    }
+
+    function formatBrandProfile(profile) {
+      if (!profile) return "Marka analizi bulunamadı.";
+
+      const colors = Array.isArray(profile.colorPalette) ? profile.colorPalette : [];
+      const products = Array.isArray(profile.products) ? profile.products : [];
+      const styleNotes = Array.isArray(profile.visualStyleNotes) ? profile.visualStyleNotes : [];
+      const notes = Array.isArray(profile.notes) ? profile.notes : [];
+
+      return `MARKA ADI
+${profile.brandName || '-'}
+
+WEBSITE
+${profile.website || '-'}
+
+LOGO İPUCU
+${profile.logoHint || '-'}
+
+RENK PALETİ İPUÇLARI
+1. ${colors[0] || '-'}
+2. ${colors[1] || '-'}
+3. ${colors[2] || '-'}
+4. ${colors[3] || '-'}
+
+KONUM
+${profile.location || '-'}
+
+ÜRÜNLER / HİZMETLER
+1. ${products[0] || '-'}
+2. ${products[1] || '-'}
+3. ${products[2] || '-'}
+4. ${products[3] || '-'}
+
+HEDEF KİTLE İPUCU
+${profile.targetAudienceHint || '-'}
+
+MARKA TONU İPUCU
+${profile.brandToneHint || '-'}
+
+GÖRSEL DİL NOTLARI
+1. ${styleNotes[0] || '-'}
+2. ${styleNotes[1] || '-'}
+3. ${styleNotes[2] || '-'}
+4. ${styleNotes[3] || '-'}
+
+EK NOTLAR
+1. ${notes[0] || '-'}
+2. ${notes[1] || '-'}
+3. ${notes[2] || '-'}
+
+SOSYAL LİNKLER
+Instagram: ${profile.socialLinks?.instagram || '-'}
+TikTok: ${profile.socialLinks?.tiktok || '-'}
+Google Maps: ${profile.socialLinks?.googleMaps || '-'}`;
+    }
+
+    function formatPromptPack(promptPack) {
+  if (!promptPack || Object.keys(promptPack).length === 0) {
+    return "Prompt çıktısı boş geldi.";
+  }
+
+  if (promptPack.task === "reels") {
+    const scenes = Array.isArray(promptPack.scenePrompts) ? promptPack.scenePrompts : [];
+    const notes = Array.isArray(promptPack.notes) ? promptPack.notes : [];
+
+    return `PROMPT ARACI
+${promptPack.tool || '-'}
+
+THUMBNAIL METNİ
+${promptPack.thumbnailText || '-'}
+
+THUMBNAIL PROMPT
+${promptPack.thumbnailPrompt || '-'}
+
+SAHNE PROMPTLARI
+1. ${scenes[0] || '-'}
+2. ${scenes[1] || '-'}
+3. ${scenes[2] || '-'}
+
+MASTER VIDEO PROMPT
+${promptPack.masterVideoPrompt || '-'}
+
+NOTLAR
+1. ${notes[0] || '-'}
+2. ${notes[1] || '-'}
+3. ${notes[2] || '-'}`;
+  }
+
+  const notes = Array.isArray(promptPack.notes) ? promptPack.notes : [];
+
+  return `PROMPT ARACI
+${promptPack.tool || '-'}
+
+GÖRSEL KONSEPTİ
+${promptPack.imageConcept || '-'}
+
+GÖRSEL ÜZERİNDE YAZACAK METİN
+${promptPack.textOnImage || '-'}
+
+TASARIM STİLİ
+${promptPack.designStyle || '-'}
+
+HAZIR PROMPT
+${promptPack.prompt || '-'}
+
+EK NOTLAR
+1. ${notes[0] || '-'}
+2. ${notes[1] || '-'}
+3. ${notes[2] || '-'}`;
+}
+
+    async function analyzeBrand() {
+      const markaAdi = document.getElementById("markaAdi").value.trim();
+      const websiteUrl = document.getElementById("websiteUrl").value.trim();
+      const googleMapsUrl = document.getElementById("googleMapsUrl").value.trim();
+      const instagramUrl = document.getElementById("instagramUrl").value.trim();
+      const tiktokUrl = document.getElementById("tiktokUrl").value.trim();
+
+      const brandDurum = document.getElementById("brandDurum");
+      const brandSonuc = document.getElementById("brandSonuc");
+
+      if (!markaAdi && !websiteUrl && !instagramUrl && !googleMapsUrl && !tiktokUrl) {
+        brandDurum.innerText = "En az bir marka adı veya link gir.";
+        return;
+      }
+
+      brandDurum.innerText = "Marka analiz ediliyor...";
+      brandSonuc.innerText = "";
+
+      try {
+        const response = await fetch(`${API_BASE}/analyze-brand`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            brandName: markaAdi,
+            websiteUrl,
+            googleMapsUrl,
+            instagramUrl,
+            tiktokUrl,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          brandDurum.innerText = "Hata oluştu.";
+          brandSonuc.innerText = data.error || "Marka analizi yapılamadı.";
+          return;
+        }
+
+        lastBrandProfile = data.brandProfile || null;
+        brandDurum.innerText = "Marka analizi hazır.";
+        brandSonuc.innerText = formatBrandProfile(lastBrandProfile);
+      } catch (error) {
+        brandDurum.innerText = "Bağlantı hatası.";
+        brandSonuc.innerText = error.message;
+      }
+    }
+
+    async function runTask(task) {
+      const platform = document.getElementById("platform").value;
+      const hedef = document.getElementById("hedef").value;
+      const ton = document.getElementById("ton").value;
+      const durumAlani = document.getElementById("durum");
+      const sonucAlani = document.getElementById("sonuc");
+      const butonlar = document.querySelectorAll("button");
+      const promptPanel = document.getElementById("promptPanel");
+      const promptSonuc = document.getElementById("promptSonuc");
+      const promptDurum = document.getElementById("promptDurum");
+
+      const formData = collectFormData();
+
+      if (!formData.aciklama) {
+        durumAlani.innerText = "Lütfen önce konu / brief yaz.";
+        return;
+      }
+
+      butonlar.forEach((btn) => (btn.disabled = true));
+      durumAlani.innerText = "İşleniyor...";
+      sonucAlani.innerText = "";
+      promptPanel.classList.add("hidden");
+      promptSonuc.innerText = "Burada prompt sonucu görünecek.";
+      promptDurum.innerText = "";
+
+      try {
+        const response = await fetch(`${API_BASE}/generate`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            task,
+            platform,
+            hedef,
+            ton,
+            formData,
+            brandProfile: lastBrandProfile,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          durumAlani.innerText = "Hata oluştu.";
+          sonucAlani.innerText = data.error || "Bilinmeyen hata";
+          return;
+        }
+
+        durumAlani.innerText = "Hazır.";
+        sonucAlani.innerText = data.post || "Boş yanıt geldi.";
+
+        lastGeneratedTask = task;
+        lastGeneratedPost = data.post || "";
+        lastOriginalPrompt = formData;
+
+        if (task === "post" || task === "reels") {
+          promptPanel.classList.remove("hidden");
+        }
+      } catch (error) {
+        durumAlani.innerText = "Bağlantı hatası.";
+        sonucAlani.innerText = error.message;
+      } finally {
+        butonlar.forEach((btn) => (btn.disabled = false));
+      }
+    }
+
+    async function generatePrompt() {
+      const promptTool = document.getElementById("promptTool").value;
+      const platform = document.getElementById("platform").value;
+      const hedef = document.getElementById("hedef").value;
+      const ton = document.getElementById("ton").value;
+      const promptDurum = document.getElementById("promptDurum");
+      const promptSonuc = document.getElementById("promptSonuc");
+      const promptBtn = document.getElementById("promptBtn");
+
+      if (!lastGeneratedPost || !lastGeneratedTask || !lastOriginalPrompt) {
+        promptDurum.innerText = "Önce içerik üretmelisin.";
+        return;
+      }
+
+      promptBtn.disabled = true;
+      promptDurum.innerText = "Prompt hazırlanıyor...";
+      promptSonuc.innerText = "";
+
+      try {
+        const response = await fetch(`${API_BASE}/generate-prompt`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            task: lastGeneratedTask,
+            promptTool,
+            originalBrief: lastOriginalPrompt,
+            generatedContent: lastGeneratedPost,
+            platform,
+            hedef,
+            ton,
+            brandProfile: lastBrandProfile,
+          }),
+        });
+
+        const data = await response.json();
+console.log("PROMPT RESPONSE:", data);
+
+if (!response.ok) {
+  promptDurum.innerText = "Hata oluştu.";
+  promptSonuc.innerText = data.error || "Prompt oluşturulamadı.";
+  return;
+}
+
+const promptPack = data?.promptPack || data?.prompt || data?.result || data;
+
+if (!promptPack || Object.keys(promptPack).length === 0) {
+  promptDurum.innerText = "Prompt hazır ama veri boş döndü.";
+  promptSonuc.innerText = JSON.stringify(data, null, 2);
+  return;
+}
+
+promptDurum.innerText = "Prompt hazır.";
+promptSonuc.innerText = formatPromptPack(promptPack);
+      } catch (error) {
+        promptDurum.innerText = "Bağlantı hatası.";
+        promptSonuc.innerText = error.message;
+      } finally {
+        promptBtn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>
