@@ -387,6 +387,20 @@
     let lastGeneratedPost = null;
     let lastOriginalPrompt = null;
     let lastBrandProfile = null;
+    let lastSettings = null;
+
+    async function readJson(response) {
+      const text = await response.text();
+      try {
+        return JSON.parse(text);
+      } catch {
+        return { error: `Sunucudan beklenmeyen yanıt geldi (HTTP ${response.status}).` };
+      }
+    }
+
+    function setButtonsDisabled(disabled) {
+      document.querySelectorAll("button").forEach((btn) => (btn.disabled = disabled));
+    }
 
     function getCheckedValues(name) {
       return Array.from(document.querySelectorAll(`input[name="${name}"]:checked`))
@@ -462,15 +476,15 @@ Google Maps: ${profile.socialLinks?.googleMaps || '-'}`;
     }
 
     function formatPromptPack(promptPack) {
-  if (!promptPack || Object.keys(promptPack).length === 0) {
-    return "Prompt çıktısı boş geldi.";
-  }
+      if (!promptPack || Object.keys(promptPack).length === 0) {
+        return "Prompt çıktısı boş geldi.";
+      }
 
-  if (promptPack.task === "reels") {
-    const scenes = Array.isArray(promptPack.scenePrompts) ? promptPack.scenePrompts : [];
-    const notes = Array.isArray(promptPack.notes) ? promptPack.notes : [];
+      if (Array.isArray(promptPack.scenePrompts)) {
+        const scenes = Array.isArray(promptPack.scenePrompts) ? promptPack.scenePrompts : [];
+        const notes = Array.isArray(promptPack.notes) ? promptPack.notes : [];
 
-    return `PROMPT ARACI
+        return `PROMPT ARACI
 ${promptPack.tool || '-'}
 
 THUMBNAIL METNİ
@@ -491,11 +505,11 @@ NOTLAR
 1. ${notes[0] || '-'}
 2. ${notes[1] || '-'}
 3. ${notes[2] || '-'}`;
-  }
+      }
 
-  const notes = Array.isArray(promptPack.notes) ? promptPack.notes : [];
+      const notes = Array.isArray(promptPack.notes) ? promptPack.notes : [];
 
-  return `PROMPT ARACI
+      return `PROMPT ARACI
 ${promptPack.tool || '-'}
 
 GÖRSEL KONSEPTİ
@@ -514,7 +528,7 @@ EK NOTLAR
 1. ${notes[0] || '-'}
 2. ${notes[1] || '-'}
 3. ${notes[2] || '-'}`;
-}
+    }
 
     async function analyzeBrand() {
       const markaAdi = document.getElementById("markaAdi").value.trim();
@@ -533,6 +547,7 @@ EK NOTLAR
 
       brandDurum.innerText = "Marka analiz ediliyor...";
       brandSonuc.innerText = "";
+      setButtonsDisabled(true);
 
       try {
         const response = await fetch(`${API_BASE}/analyze-brand`, {
@@ -549,7 +564,7 @@ EK NOTLAR
           }),
         });
 
-        const data = await response.json();
+        const data = await readJson(response);
 
         if (!response.ok) {
           brandDurum.innerText = "Hata oluştu.";
@@ -563,6 +578,8 @@ EK NOTLAR
       } catch (error) {
         brandDurum.innerText = "Bağlantı hatası.";
         brandSonuc.innerText = error.message;
+      } finally {
+        setButtonsDisabled(false);
       }
     }
 
@@ -572,7 +589,6 @@ EK NOTLAR
       const ton = document.getElementById("ton").value;
       const durumAlani = document.getElementById("durum");
       const sonucAlani = document.getElementById("sonuc");
-      const butonlar = document.querySelectorAll("button");
       const promptPanel = document.getElementById("promptPanel");
       const promptSonuc = document.getElementById("promptSonuc");
       const promptDurum = document.getElementById("promptDurum");
@@ -584,7 +600,7 @@ EK NOTLAR
         return;
       }
 
-      butonlar.forEach((btn) => (btn.disabled = true));
+      setButtonsDisabled(true);
       durumAlani.innerText = "İşleniyor...";
       sonucAlani.innerText = "";
       promptPanel.classList.add("hidden");
@@ -607,7 +623,7 @@ EK NOTLAR
           }),
         });
 
-        const data = await response.json();
+        const data = await readJson(response);
 
         if (!response.ok) {
           durumAlani.innerText = "Hata oluştu.";
@@ -621,6 +637,7 @@ EK NOTLAR
         lastGeneratedTask = task;
         lastGeneratedPost = data.post || "";
         lastOriginalPrompt = formData;
+        lastSettings = { platform, hedef, ton };
 
         if (task === "post" || task === "reels") {
           promptPanel.classList.remove("hidden");
@@ -629,15 +646,12 @@ EK NOTLAR
         durumAlani.innerText = "Bağlantı hatası.";
         sonucAlani.innerText = error.message;
       } finally {
-        butonlar.forEach((btn) => (btn.disabled = false));
+        setButtonsDisabled(false);
       }
     }
 
     async function generatePrompt() {
       const promptTool = document.getElementById("promptTool").value;
-      const platform = document.getElementById("platform").value;
-      const hedef = document.getElementById("hedef").value;
-      const ton = document.getElementById("ton").value;
       const promptDurum = document.getElementById("promptDurum");
       const promptSonuc = document.getElementById("promptSonuc");
       const promptBtn = document.getElementById("promptBtn");
@@ -662,32 +676,29 @@ EK NOTLAR
             promptTool,
             originalBrief: lastOriginalPrompt,
             generatedContent: lastGeneratedPost,
-            platform,
-            hedef,
-            ton,
+            ...lastSettings,
             brandProfile: lastBrandProfile,
           }),
         });
 
-        const data = await response.json();
-console.log("PROMPT RESPONSE:", data);
+        const data = await readJson(response);
 
-if (!response.ok) {
-  promptDurum.innerText = "Hata oluştu.";
-  promptSonuc.innerText = data.error || "Prompt oluşturulamadı.";
-  return;
-}
+        if (!response.ok) {
+          promptDurum.innerText = "Hata oluştu.";
+          promptSonuc.innerText = data.error || "Prompt oluşturulamadı.";
+          return;
+        }
 
-const promptPack = data?.promptPack || data?.prompt || data?.result || data;
+        const promptPack = data?.promptPack;
 
-if (!promptPack || Object.keys(promptPack).length === 0) {
-  promptDurum.innerText = "Prompt hazır ama veri boş döndü.";
-  promptSonuc.innerText = JSON.stringify(data, null, 2);
-  return;
-}
+        if (!promptPack || Object.keys(promptPack).length === 0) {
+          promptDurum.innerText = "Prompt hazır ama veri boş döndü.";
+          promptSonuc.innerText = JSON.stringify(data, null, 2);
+          return;
+        }
 
-promptDurum.innerText = "Prompt hazır.";
-promptSonuc.innerText = formatPromptPack(promptPack);
+        promptDurum.innerText = "Prompt hazır.";
+        promptSonuc.innerText = formatPromptPack(promptPack);
       } catch (error) {
         promptDurum.innerText = "Bağlantı hatası.";
         promptSonuc.innerText = error.message;
@@ -697,4 +708,4 @@ promptSonuc.innerText = formatPromptPack(promptPack);
     }
   </script>
 </body>
-</html>
+</html>

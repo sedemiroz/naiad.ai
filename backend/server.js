@@ -8,17 +8,56 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
 
+const PORT = Number(process.env.PORT) || 3001;
+const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+const VALID_TASKS = ['trend', 'ideas', 'reels', 'post', 'weekly'];
+const VALID_PROMPT_TOOLS = ['general_image', 'midjourney', 'firefly', 'canva', 'gemini', 'kling'];
+
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env.OPENAI_API_KEY || 'missing',
 });
+
+function getMissingApiKeys() {
+  const missing = [];
+  if (!process.env.OPENAI_API_KEY) missing.push('OPENAI_API_KEY');
+  if (!process.env.TAVILY_API_KEY) missing.push('TAVILY_API_KEY');
+  return missing;
+}
+
+function sendError(res, error, fallbackMessage) {
+  if (error.status === 429) {
+    return res.status(429).json({
+      error: 'Rate limit veya bakiye sorunu var. Biraz bekleyin ya da API bütçenizi kontrol edin.',
+    });
+  }
+
+  if (error.status === 401) {
+    return res.status(401).json({
+      error: 'API anahtarı geçersiz veya eksik.',
+    });
+  }
+
+  if (error.status === 404) {
+    return res.status(404).json({
+      error: 'Model bulunamadı veya bu modele erişiminiz yok.',
+    });
+  }
+
+  return res.status(500).json({
+    error: error.message || fallbackMessage,
+  });
+}
 
 async function tavilySearch(query, topic = 'general') {
   let lastError;
 
-  for (let i = 0; i < 3; i++) {
+  const maxAttempts = 3;
+
+  for (let i = 0; i < maxAttempts; i++) {
     try {
       const response = await fetch('https://api.tavily.com/search', {
         method: 'POST',
+        signal: AbortSignal.timeout(30000),
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${process.env.TAVILY_API_KEY}`,
@@ -35,12 +74,19 @@ async function tavilySearch(query, topic = 'general') {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Tavily hatası: ${response.status} - ${errorText}`);
+        const error = new Error(`Tavily hatası: ${response.status} - ${shortenText(errorText, 200)}`);
+        error.status = response.status;
+        throw error;
       }
 
       return await response.json();
     } catch (error) {
       lastError = error;
+
+      // 4xx hataları (429 hariç) tekrar denemekle düzelmez.
+      const isClientError = error.status >= 400 && error.status < 500 && error.status !== 429;
+      if (isClientError || i === maxAttempts - 1) break;
+
       await new Promise((resolve) => setTimeout(resolve, 1500 * (i + 1)));
     }
   }
@@ -52,8 +98,21 @@ async function tavilyMultiSearch(queries, topic = 'general') {
   const allResults = [];
   const allAnswers = [];
 
-  for (const query of queries) {
-    const data = await tavilySearch(query, topic);
+  const settled = await Promise.allSettled(queries.map((query) => tavilySearch(query, topic)));
+  const failures = settled.filter((item) => item.status === 'rejected');
+
+  if (queries.length && failures.length === queries.length) {
+    throw failures[0].reason;
+  }
+
+  if (failures.length) {
+    console.warn(`Tavily: ${failures.length}/${queries.length} sorgu başarısız oldu.`);
+  }
+
+  for (let i = 0; i < queries.length; i++) {
+    if (settled[i].status !== 'fulfilled') continue;
+    const query = queries[i];
+    const data = settled[i].value;
 
     if (data?.answer) {
       allAnswers.push(`Sorgu: ${query}\nÖzet: ${data.answer}`);
@@ -101,7 +160,7 @@ function detectResearchTopic(text = '') {
     'news',
     'launch',
     'trending',
-    '2026',
+    String(new Date().getFullYear()),
   ];
 
   const isNewsFocused = newsKeywords.some((keyword) => lowerText.includes(keyword));
@@ -121,6 +180,24 @@ function cleanText(value, fallback = '-') {
 function cleanArray(arr) {
   if (!Array.isArray(arr)) return [];
   return arr.map((item) => cleanText(item, '')).filter(Boolean);
+}
+
+function formatResearchResults(results) {
+  const resultsText = results
+    .map((item, index) => {
+      return `${index + 1}. Başlık: ${cleanText(item.title)}
+URL: ${cleanText(item.url)}
+Özet: ${shortenText(item.content, 220)}`;
+    })
+    .join('\n\n');
+
+  const sources = results.map((item, index) => ({
+    index: index + 1,
+    title: cleanText(item.title),
+    url: cleanText(item.url),
+  }));
+
+  return { resultsText, sources };
 }
 
 function safeJsonParse(text) {
@@ -143,7 +220,7 @@ function extractJson(text) {
   const trimmed = String(text).trim();
 
   const direct = safeJsonParse(trimmed);
-  if (direct) return direct;
+  if (direct && typeof direct === 'object' && !Array.isArray(direct)) return direct;
 
   const codeBlockMatch =
     trimmed.match(/```json\s*([\s\S]*?)```/i) ||
@@ -899,7 +976,7 @@ JSON yapısı tam olarak şu olsun:
 }
 
 app.post('/generate', async (req, res) => {
-  const { task, platform, hedef, ton, formData, brandProfile } = req.body;
+  const { task, platform, hedef, ton, formData, brandProfile } = req.body || {};
 
   const anaBrief = formData?.aciklama || '';
   if (!String(anaBrief).trim()) {
@@ -908,8 +985,21 @@ app.post('/generate', async (req, res) => {
     });
   }
 
+  if (!VALID_TASKS.includes(task)) {
+    return res.status(400).json({
+      error: `Geçersiz görev tipi. Geçerli değerler: ${VALID_TASKS.join(', ')}`,
+    });
+  }
+
+  const missingKeys = getMissingApiKeys();
+  if (missingKeys.length) {
+    return res.status(500).json({
+      error: `Sunucuda eksik API anahtarı: ${missingKeys.join(', ')}. backend/.env dosyasını kontrol edin.`,
+    });
+  }
+
   try {
-    const safeTask = cleanText(task, 'ideas');
+    const safeTask = task;
     const researchTopic = detectResearchTopic(
       `${formData?.aciklama || ''} ${hedef || ''} ${platform || ''} ${ton || ''}`
     );
@@ -927,19 +1017,7 @@ app.post('/generate', async (req, res) => {
     const answerText = cleanText(tavilyData.answer, '');
     const results = Array.isArray(tavilyData.results) ? tavilyData.results : [];
 
-    const resultsText = results
-      .map((item, index) => {
-        return `${index + 1}. Başlık: ${cleanText(item.title)}
-URL: ${cleanText(item.url)}
-Özet: ${shortenText(item.content, 220)}`;
-      })
-      .join('\n\n');
-
-    const sources = results.map((item, index) => ({
-      index: index + 1,
-      title: cleanText(item.title),
-      url: cleanText(item.url),
-    }));
+    const { resultsText, sources } = formatResearchResults(results);
 
     const messages = [
       {
@@ -967,7 +1045,7 @@ Araştırma modu: ${cleanText(formData?.arastirmaModu, 'Belirtilmedi')}
 Ana ürünler / hizmetler: ${cleanText(formData?.anaUrunler, 'Belirtilmedi')}
 Asıl brief: ${cleanText(formData?.aciklama, '')}
 Özel not: ${cleanText(formData?.ozelNot, 'Yok')}
-Odaklar: ${(formData?.odaklar || []).join(', ') || 'Belirtilmedi'}
+Odaklar: ${cleanArray(formData?.odaklar).join(', ') || 'Belirtilmedi'}
 
 MARKA PROFİLİ
 ${brandProfile ? JSON.stringify(brandProfile, null, 2) : 'Yok'}
@@ -989,7 +1067,7 @@ Kurallar:
     ];
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: OPENAI_MODEL,
       messages,
       response_format: { type: 'json_object' },
       temperature: 0.2,
@@ -1015,28 +1093,7 @@ Kurallar:
     });
   } catch (error) {
     console.error('Hata detayı:', error);
-
-    if (error.status === 429) {
-      return res.status(429).json({
-        error: 'Rate limit veya bakiye sorunu var. Biraz bekleyin ya da API bütçenizi kontrol edin.',
-      });
-    }
-
-    if (error.status === 401) {
-      return res.status(401).json({
-        error: 'API anahtarı geçersiz veya eksik.',
-      });
-    }
-
-    if (error.status === 404) {
-      return res.status(404).json({
-        error: 'Model bulunamadı veya bu modele erişiminiz yok.',
-      });
-    }
-
-    return res.status(500).json({
-      error: error.message || 'Sunucuda bir hata oluştu.',
-    });
+    return sendError(res, error, 'Sunucuda bir hata oluştu.');
   }
 });
 
@@ -1060,9 +1117,15 @@ app.post('/generate-prompt', async (req, res) => {
     });
   }
 
+  if (!process.env.OPENAI_API_KEY) {
+    return res.status(500).json({
+      error: 'Sunucuda eksik API anahtarı: OPENAI_API_KEY. backend/.env dosyasını kontrol edin.',
+    });
+  }
+
   try {
-    const safeTask = cleanText(task, 'post');
-    const safeTool = cleanText(promptTool, 'general_image');
+    const safeTask = VALID_TASKS.includes(task) ? task : 'post';
+    const safeTool = VALID_PROMPT_TOOLS.includes(promptTool) ? promptTool : 'general_image';
 
     const brandName = cleanText(brandProfile?.brandName, 'Belirtilmedi');
     const logoHint = cleanText(brandProfile?.logoHint, 'Yok');
@@ -1080,9 +1143,7 @@ app.post('/generate-prompt', async (req, res) => {
     const isletmeTipi = cleanText(originalBrief?.isletmeTipi, '');
     const hedefKitle = cleanText(originalBrief?.hedefKitle, '');
     const ozelNot = cleanText(originalBrief?.ozelNot, '');
-    const odaklar = Array.isArray(originalBrief?.odaklar)
-      ? originalBrief.odaklar.join(', ')
-      : '';
+    const odaklar = cleanArray(originalBrief?.odaklar).join(', ');
     const markaAdi = cleanText(originalBrief?.markaAdi, '');
 
     const messages = [
@@ -1151,7 +1212,7 @@ Kurallar:
     ];
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: OPENAI_MODEL,
       messages,
       response_format: { type: 'json_object' },
       temperature: 0.2,
@@ -1169,35 +1230,12 @@ Kurallar:
 
     const structuredPrompt = extractJson(raw);
 
-    console.log('STRUCTURED PROMPT OBJECT:', structuredPrompt);
-
     return res.json({
       promptPack: structuredPrompt,
     });
   } catch (error) {
     console.error('Prompt üretim hatası:', error);
-
-    if (error.status === 429) {
-      return res.status(429).json({
-        error: 'Rate limit veya bakiye sorunu var. Biraz bekleyin ya da API bütçenizi kontrol edin.',
-      });
-    }
-
-    if (error.status === 401) {
-      return res.status(401).json({
-        error: 'API anahtarı geçersiz veya eksik.',
-      });
-    }
-
-    if (error.status === 404) {
-      return res.status(404).json({
-        error: 'Model bulunamadı veya bu modele erişiminiz yok.',
-      });
-    }
-
-    return res.status(500).json({
-      error: error.message || 'Prompt üretiminde bir hata oluştu.',
-    });
+    return sendError(res, error, 'Prompt üretiminde bir hata oluştu.');
   }
 });
 
@@ -1211,6 +1249,13 @@ app.post('/analyze-brand', async (req, res) => {
   if (!hasAtLeastOneField) {
     return res.status(400).json({
       error: 'Marka analizi için en az bir alan girilmelidir.',
+    });
+  }
+
+  const missingKeys = getMissingApiKeys();
+  if (missingKeys.length) {
+    return res.status(500).json({
+      error: `Sunucuda eksik API anahtarı: ${missingKeys.join(', ')}. backend/.env dosyasını kontrol edin.`,
     });
   }
 
@@ -1231,19 +1276,7 @@ app.post('/analyze-brand', async (req, res) => {
     const answerText = cleanText(tavilyData.answer, '');
     const results = Array.isArray(tavilyData.results) ? tavilyData.results : [];
 
-    const resultsText = results
-      .map((item, index) => {
-        return `${index + 1}. Başlık: ${cleanText(item.title)}
-URL: ${cleanText(item.url)}
-Özet: ${shortenText(item.content, 220)}`;
-      })
-      .join('\n\n');
-
-    const sources = results.map((item, index) => ({
-      index: index + 1,
-      title: cleanText(item.title),
-      url: cleanText(item.url),
-    }));
+    const { resultsText, sources } = formatResearchResults(results);
 
     const messages = [
       {
@@ -1301,7 +1334,7 @@ Kurallar:
     ];
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: OPENAI_MODEL,
       messages,
       response_format: { type: 'json_object' },
       temperature: 0.2,
@@ -1348,22 +1381,7 @@ Kurallar:
     });
   } catch (error) {
     console.error('Marka analiz hatası:', error);
-
-    if (error.status === 429) {
-      return res.status(429).json({
-        error: 'Rate limit veya bakiye sorunu var. Biraz bekleyin ya da API bütçenizi kontrol edin.',
-      });
-    }
-
-    if (error.status === 401) {
-      return res.status(401).json({
-        error: 'API anahtarı geçersiz veya eksik.',
-      });
-    }
-
-    return res.status(500).json({
-      error: error.message || 'Marka analizi sırasında hata oluştu.',
-    });
+    return sendError(res, error, 'Marka analizi sırasında hata oluştu.');
   }
 });
 
@@ -1374,8 +1392,11 @@ app.get('/health', (req, res) => {
   });
 });
 
-const PORT = 3001;
-
 app.listen(PORT, () => {
   console.log(`Server ${PORT} portunda çalışıyor.`);
-});
+
+  const missingKeys = getMissingApiKeys();
+  if (missingKeys.length) {
+    console.warn(`Uyarı: eksik API anahtarı: ${missingKeys.join(', ')}`);
+  }
+});
